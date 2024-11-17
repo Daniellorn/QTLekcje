@@ -6,7 +6,7 @@
 #include <cmath>
 
 Ekran::Ekran(QWidget *parent)
-    : QWidget{parent}, m_isDrawing(false)
+    : QWidget{parent}, m_isDrawing(false), m_ellipseN(1000)
 {
     m_canvas = QImage(500, 500, QImage::Format_RGB32);
     m_canvas.fill(0);
@@ -17,17 +17,24 @@ Ekran::Ekran(QWidget *parent)
     m_CircleButton = new QPushButton("Circle", this);
     m_EllipseButton = new QPushButton("Ellipse", this);
     m_ClearButton = new QPushButton("Clear", this);
+    m_BezierCurve = new QPushButton("Bezier curve", this);
 
     m_lineButton->setGeometry(550,10,100,30);
     m_CircleButton->setGeometry(550,50,100,30);
     m_EllipseButton->setGeometry(550,90,100,30);
     m_ClearButton->setGeometry(550, 450, 100, 30);
+    m_BezierCurve->setGeometry(550, 130, 100,30);
 
 
     connect(m_lineButton, &QPushButton::clicked, this, &Ekran::setLineMode);
     connect(m_CircleButton, &QPushButton::clicked, this, &Ekran::setCircleMode);
     connect(m_EllipseButton, &QPushButton::clicked, this, &Ekran::setEllipseMode);
-    connect(m_ClearButton, &QPushButton::clicked, this, &Ekran::clear);
+    connect(m_ClearButton, &QPushButton::clicked, this, &Ekran::clearAll);
+    connect(m_BezierCurve, &QPushButton::clicked, this, &Ekran::setBezierCurveMode);
+
+    //Spytaj sie co z destruktorem okok
+    m_ellipseWindow = new EllipseWindow(nullptr);
+    connect(m_ellipseWindow, &EllipseWindow::valueChanged, this, &Ekran::updateEllipseN);
 
 }
 
@@ -37,8 +44,16 @@ void Ekran::paintEvent(QPaintEvent *event)
     p.fillRect(0, 0, width(), height(), Qt::yellow);
     p.drawImage(0, 0, m_canvas);
 
-    //drawCircle(m_canvas, {50,50}, {75, 85});
+    //drawCircle(m_canvas, {100,100}, 3);
     //drawEllipse(m_canvas, {50,50}, {350,560}, 100);
+
+    if (m_BezierCurvePoints.size() != 0)
+    {
+        for (const auto& circle: m_BezierCurvePoints)
+        {
+            drawCircle(m_canvas, circle.point, circle.radius);
+        }
+    }
 
     if (m_isDrawing)
     {
@@ -46,14 +61,17 @@ void Ekran::paintEvent(QPaintEvent *event)
 
         switch (m_mode)
         {
-        case drawingMode::Line:
-                drawLineBresenham(tempCanvas, m_startPoint, m_endPoint);
-                break;
-        case drawingMode::Circle:
-                drawCircle(tempCanvas, m_startPoint, m_endPoint);
-                break;
-        case drawingMode::Ellipse:
-                drawEllipse(tempCanvas, m_startPoint, m_endPoint, 1000);
+            case drawingMode::Line:
+                    drawLineBresenham(tempCanvas, m_startPoint, m_endPoint);
+                    break;
+            case drawingMode::Circle:
+                    drawCircle(tempCanvas, m_startPoint, m_endPoint);
+                    break;
+            case drawingMode::Ellipse:
+                    drawEllipse(tempCanvas, m_startPoint, m_endPoint, m_ellipseN);
+                    break;
+            case drawingMode::BezierCurve:
+                //drawCircle(tempCanvas, m_startPoint, 3);
                 break;
         }
 
@@ -90,6 +108,34 @@ void Ekran::mousePressEvent(QMouseEvent *event)
         m_endPoint = event->pos();
         m_isDrawing = true;
     }
+
+
+    if (event->button() == Qt::RightButton)
+    {
+        m_isDrawing = true;
+        QPoint position = event->pos();
+
+
+        //Dodaj funkcje std::min
+        for (auto it = m_BezierCurvePoints.begin(); it != m_BezierCurvePoints.end();)
+        {
+            float distance = (it->point.x() - position.x()) * (it->point.x() - position.x()) +
+                             (it->point.y() - position.y()) * (it->point.y() - position.y());
+
+
+            if (distance <= (it->radius * it->radius) + 10)
+            {
+                it = m_BezierCurvePoints.erase(it);
+                clear();
+                break;
+            }
+            else
+            {
+                it++;
+            }
+        }
+    }
+
 }
 
 void Ekran::mouseReleaseEvent(QMouseEvent *event)
@@ -99,20 +145,25 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
         m_endPoint = event->pos();
         switch (m_mode)
         {
-        case drawingMode::Line:
-            drawLineBresenham(m_canvas, m_startPoint, m_endPoint);
-            break;
-        case drawingMode::Circle:
-            drawCircle(m_canvas, m_startPoint, m_endPoint);
-            break;
-        case drawingMode::Ellipse:
-            drawEllipse(m_canvas, m_startPoint, m_endPoint, 10000);
-            break;
+            case drawingMode::Line:
+                drawLineBresenham(m_canvas, m_startPoint, m_endPoint);
+                break;
+            case drawingMode::Circle:
+                drawCircle(m_canvas, m_startPoint, m_endPoint);
+                break;
+            case drawingMode::Ellipse:
+                drawEllipse(m_canvas, m_startPoint, m_endPoint, m_ellipseN);
+                break;
+            case drawingMode::BezierCurve:
+                drawCircle(m_canvas, m_startPoint, 3);
+                m_BezierCurvePoints.emplace_back(BezierPoint{m_startPoint, 3});
+                break;
         }
 
         m_isDrawing = false;
         update();
     }
+
 }
 
 
@@ -338,6 +389,49 @@ void Ekran::drawCircle(QImage& img, const QPoint& first, const QPoint& second)
     update();
 }
 
+void Ekran::drawCircle(QImage &img, const QPoint &first, float r)
+{
+    int x1 = first.x();
+    int y1 = first.y();
+
+    float L = std::round(r/std::sqrt(2));
+    float y;
+    for (int i = 0; i <= L; i++)
+    {
+        y = std::sqrt(r * r - i * i);
+
+        // Pierwsza cwiartka
+        drawPixel(img, i + x1, std::round(y) + y1, 0xFF0000);
+        drawPixel(img, std::round(y) + x1, i + y1, 0xFF0000);
+
+        // Druga cwiartka
+        drawPixel(img, std::round(y) + x1, -i + y1 , 0xFF0000);
+        drawPixel(img, i + x1, -std::round(y) + y1 , 0xFF0000);
+
+        // Trzecia cwiartka
+        drawPixel(img, -i + x1, -std::round(y) + y1 , 0xFF0000);
+        drawPixel(img, -std::round(y) + x1, -i + y1 , 0xFF0000);
+
+        // Czwarta cwiartka
+        drawPixel(img, -i + x1, std::round(y) + y1 , 0xFF0000);
+        drawPixel(img, -std::round(y) + x1, i + y1 , 0xFF0000);
+
+    }
+
+    for (int i = -std::ceil(r); i <= std::ceil(r); i++)
+    {
+        for (int j = -std::ceil(r); j <= std::ceil(r); j++)
+        {
+            if (std::sqrt(j * j + i * i) <= r) {
+                drawPixel(img, x1 + j, y1 + i, 0xFF00FF);
+            }
+        }
+    }
+
+
+    update();
+}
+
 void Ekran::drawEllipse(QImage &img, const QPoint &first, const QPoint &second, int N)
 {
     int x1 = first.x();
@@ -368,23 +462,52 @@ void Ekran::drawEllipse(QImage &img, const QPoint &first, const QPoint &second, 
     update();
 }
 
+void Ekran::clear()
+{
+    m_canvas.fill(0);
+    update();
+}
+
 void Ekran::setLineMode()
 {
     m_mode = drawingMode::Line;
+    m_ellipseWindow->hide();
 }
 
 void Ekran::setCircleMode()
 {
     m_mode = drawingMode::Circle;
+    m_ellipseWindow->hide();
 }
 
 void Ekran::setEllipseMode()
 {
     m_mode = drawingMode::Ellipse;
+
+    QPoint EkranPos = this->pos();
+    m_ellipseWindow->move(EkranPos.x() + 750, EkranPos.y() +50);
+
+    m_ellipseWindow->show();
 }
 
-void Ekran::clear()
+void Ekran::setBezierCurveMode()
+{
+    m_mode = drawingMode::BezierCurve;
+    m_ellipseWindow->hide();
+}
+
+void Ekran::clearAll()
 {
     m_canvas.fill(0);
     update();
+    m_isDrawing = false;
+
+    m_BezierCurvePoints.clear();
+
+    m_ellipseWindow->hide();
+}
+
+void Ekran::updateEllipseN(int value)
+{
+    m_ellipseN = value;
 }
