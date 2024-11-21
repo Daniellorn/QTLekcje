@@ -10,6 +10,14 @@ struct BezierPoint
 {
     QPoint point;
     int radius;
+
+    float distanceSquared(const QPoint& other) const
+    {
+        float dx = point.x() - other.x();
+        float dy = point.y() - other.y();
+
+        return dx * dx + dy * dy;
+    }
 };
 
 
@@ -33,6 +41,7 @@ private:
     void drawCircle(QImage& img, const QPoint& first, const QPoint& second);
     void drawCircle(QImage& img, const QPoint& first, float r);
     void drawEllipse(QImage& img, const QPoint& first, const QPoint& second, int N);
+    void drawBezierCurve(QImage& img, const std::vector<BezierPoint>& controlPoints, int N);
 
     enum class drawingMode
     {
@@ -41,6 +50,7 @@ private:
 
 
     void clear();
+    void removePoints(std::vector<BezierPoint>& bezierPoints, const QPoint& position);
 
 
 private:

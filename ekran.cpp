@@ -4,6 +4,8 @@
 #include <QDebug>
 
 #include <cmath>
+#include <vector>
+#include <algorithm>
 
 Ekran::Ekran(QWidget *parent)
     : QWidget{parent}, m_isDrawing(false), m_ellipseN(1000)
@@ -115,25 +117,26 @@ void Ekran::mousePressEvent(QMouseEvent *event)
         m_isDrawing = true;
         QPoint position = event->pos();
 
+        removePoints(m_BezierCurvePoints, position);
 
         //Dodaj funkcje std::min
-        for (auto it = m_BezierCurvePoints.begin(); it != m_BezierCurvePoints.end();)
-        {
-            float distance = (it->point.x() - position.x()) * (it->point.x() - position.x()) +
-                             (it->point.y() - position.y()) * (it->point.y() - position.y());
-
-
-            if (distance <= (it->radius * it->radius) + 10)
-            {
-                it = m_BezierCurvePoints.erase(it);
-                clear();
-                break;
-            }
-            else
-            {
-                it++;
-            }
-        }
+        //for (auto it = m_BezierCurvePoints.begin(); it != m_BezierCurvePoints.end();)
+        //{
+        //    float distance = (it->point.x() - position.x()) * (it->point.x() - position.x()) +
+        //                     (it->point.y() - position.y()) * (it->point.y() - position.y());
+//
+//
+        //    if (distance <= (it->radius * it->radius) + 10)
+        //    {
+        //        it = m_BezierCurvePoints.erase(it);
+        //        clear();
+        //        break;
+        //    }
+        //    else
+        //    {
+        //        it++;
+        //    }
+        //}
     }
 
 }
@@ -157,6 +160,16 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
             case drawingMode::BezierCurve:
                 drawCircle(m_canvas, m_startPoint, 3);
                 m_BezierCurvePoints.emplace_back(BezierPoint{m_startPoint, 3});
+
+
+                if (m_BezierCurvePoints.size() == 4)
+                {
+                    BezierPoint lastPoint = m_BezierCurvePoints[m_BezierCurvePoints.size() - 1];
+                    drawBezierCurve(m_canvas, m_BezierCurvePoints, 1000);
+                    m_BezierCurvePoints.clear();
+                    m_BezierCurvePoints.emplace_back(lastPoint);
+                }
+
                 break;
         }
 
@@ -462,10 +475,78 @@ void Ekran::drawEllipse(QImage &img, const QPoint &first, const QPoint &second, 
     update();
 }
 
+
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+void Ekran::drawBezierCurve(QImage &img, const std::vector<BezierPoint> &controlPoints, int N)
+{
+    if (controlPoints.size() != 4)
+    {
+        qDebug() << "Potrzeba 4 punktow";
+        return;
+    }
+
+
+    QPoint P0 = {controlPoints[0].point.x(), controlPoints[0].point.y()};
+    QPoint P1 = {controlPoints[1].point.x(), controlPoints[1].point.y()};
+    QPoint P2 = {controlPoints[2].point.x(), controlPoints[2].point.y()};
+    QPoint P3 = {controlPoints[3].point.x(), controlPoints[3].point.y()};
+
+
+    QPoint previousPoint = P0;
+
+    for (int i = 0; i < N; i++)
+    {
+        float t = i / (N * 1.0);
+
+        float x = std::pow(1 - t, 3)* P0.x() +
+                  3 * std::pow(1 - t, 2)* t * P1.x() +
+                  3 * (1 - t) * t * t * P2.x() +
+                  t * t * t * P3.x();
+
+        float y = std::pow(1 - t, 3)* P0.y() +
+                  3 * std::pow(1 - t, 2)* t * P1.y() +
+                  3 * (1 - t) * t * t * P2.y() +
+                  t * t * t * P3.y();
+
+        QPoint currentPoint = {int(x), int(y)};
+
+        drawLineBresenham(m_canvas, previousPoint, currentPoint);
+
+        previousPoint = currentPoint;
+    }
+
+    update();
+}
+
+
+
 void Ekran::clear()
 {
     m_canvas.fill(0);
     update();
+}
+
+void Ekran::removePoints(std::vector<BezierPoint> &bezierPoints, const QPoint &position)
+{
+    auto comparator = [&position](const BezierPoint& a, const BezierPoint& b) {
+        float distanceA = a.distanceSquared(position);
+        float distanceB = b.distanceSquared(position);
+        return distanceA < distanceB;
+    };
+
+    auto it = std::min_element(bezierPoints.begin(), bezierPoints.end(), comparator);
+
+    if (it != bezierPoints.end())
+    {
+        if (it->distanceSquared(position) <= it->radius * it->radius + 10)
+        {
+            bezierPoints.erase(it);
+            clear();
+        }
+    }
 }
 
 void Ekran::setLineMode()
