@@ -162,12 +162,14 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
                 m_BezierCurvePoints.emplace_back(BezierPoint{m_startPoint, 3});
 
 
-                if (m_BezierCurvePoints.size() == 4)
+                if (m_BezierCurvePoints.size() >= 4 && (m_BezierCurvePoints.size() - 1) % 3 == 0)
                 {
-                    BezierPoint lastPoint = m_BezierCurvePoints[m_BezierCurvePoints.size() - 1];
-                    drawBezierCurve(m_canvas, m_BezierCurvePoints, 1000);
-                    m_BezierCurvePoints.clear();
-                    m_BezierCurvePoints.emplace_back(lastPoint);
+                    auto startIdx = m_BezierCurvePoints.size() - 4;
+                    std::vector<BezierPoint> segmentPoints(
+                        m_BezierCurvePoints.begin() + startIdx,
+                        m_BezierCurvePoints.begin() + startIdx + 4
+                        );
+                    drawBezierCurve(m_canvas, segmentPoints, 1000);
                 }
 
                 break;
