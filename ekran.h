@@ -3,6 +3,9 @@
 
 #include <QWidget>
 #include <QPushButton>
+#include <QColor>
+
+#include <tuple>
 
 #include "ellipsewindow.h"
 
@@ -21,6 +24,17 @@ struct BezierPoint
 };
 
 
+struct PixelColor
+{
+    int R;
+    int G;
+    int B;
+    int alpha;
+
+    auto operator<=>(const PixelColor& other) const = default;
+};
+
+
 
 class Ekran : public QWidget
 {
@@ -36,6 +50,7 @@ protected:
 
 private:
     void drawPixel(QImage& img, int x, int y, int h_color);
+    void drawPixel(QImage& img, const QPoint& point, const PixelColor& color);
     void drawLine(QImage& img, const QPoint& frist, const QPoint& second);
     void drawLineBresenham(QImage& img, const QPoint& first, const QPoint& second);
     void drawCircle(QImage& img, const QPoint& first, const QPoint& second);
@@ -43,17 +58,21 @@ private:
     void drawEllipse(QImage& img, const QPoint& first, const QPoint& second, int N);
     void drawBezierCurve(QImage& img, const std::vector<BezierPoint>& controlPoints, int N);
 
+    void flood_fill(QImage& img, const QPoint& point, const PixelColor& currentColor, const PixelColor& newColor);
 
-    void flood_fill(QImage& img, const QPoint& point, const QColor& currentColor, const QColor& newColor);
+
+    PixelColor getPixelColor(QImage& img, const QPoint& point) const;
+
+
+    void clear();
+    void removePoints(std::vector<BezierPoint>& bezierPoints, const QPoint& position);
+
+
 
     enum class drawingMode
     {
         Line, Circle, Ellipse, BezierCurve, FillWithColor
     };
-
-
-    void clear();
-    void removePoints(std::vector<BezierPoint>& bezierPoints, const QPoint& position);
 
 
 private:

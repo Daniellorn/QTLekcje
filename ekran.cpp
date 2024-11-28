@@ -3,6 +3,7 @@
 #include <QMouseEvent>
 #include <QDebug>
 #include <QImage>
+#include <QColorDialog>
 
 #include <cmath>
 #include <vector>
@@ -30,7 +31,6 @@ Ekran::Ekran(QWidget *parent)
     m_ClearButton->setGeometry(550, 450, 100, 30);
     m_BezierCurveButton->setGeometry(550, 130, 100,30);
     m_FillColorButton->setGeometry(550, 170, 100, 30);
-
 
     connect(m_lineButton, &QPushButton::clicked, this, &Ekran::setLineMode);
     connect(m_CircleButton, &QPushButton::clicked, this, &Ekran::setCircleMode);
@@ -84,10 +84,6 @@ void Ekran::paintEvent(QPaintEvent *event)
                     break;
         }
 
-        //drawLine(tempCanvas, m_startPoint, m_endPoint);
-        //drawLineBresenham(tempCanvas, m_startPoint, m_endPoint);
-        //drawCircle(tempCanvas, m_startPoint, m_endPoint);
-
         p.drawImage(0, 0, tempCanvas);
     }
 
@@ -126,31 +122,14 @@ void Ekran::mousePressEvent(QMouseEvent *event)
         QPoint position = event->pos();
 
         removePoints(m_BezierCurvePoints, position);
-
-        //Dodaj funkcje std::min
-        //for (auto it = m_BezierCurvePoints.begin(); it != m_BezierCurvePoints.end();)
-        //{
-        //    float distance = (it->point.x() - position.x()) * (it->point.x() - position.x()) +
-        //                     (it->point.y() - position.y()) * (it->point.y() - position.y());
-//
-//
-        //    if (distance <= (it->radius * it->radius) + 10)
-        //    {
-        //        it = m_BezierCurvePoints.erase(it);
-        //        clear();
-        //        break;
-        //    }
-        //    else
-        //    {
-        //        it++;
-        //    }
-        //}
     }
 
 }
 
 void Ekran::mouseReleaseEvent(QMouseEvent *event)
 {
+
+
     if (event->button() == Qt::LeftButton && m_isDrawing)
     {
         m_endPoint = event->pos();
@@ -183,9 +162,9 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
                 break;
             case drawingMode::FillWithColor:
 
-                QColor color = m_canvas.pixelColor(m_endPoint);
+                PixelColor color = getPixelColor(m_canvas, m_endPoint);
 
-                flood_fill(m_canvas, m_endPoint, color, QColor(255, 0, 0, 255));
+                flood_fill(m_canvas, m_endPoint, color, PixelColor{255, 0, 0, 0});
                 break;
         }
 
@@ -204,6 +183,24 @@ void Ekran::drawPixel(QImage& img, int x, int y, int h_color)
     line[4*x] = h_color & 0xFF; //blue
     line[4*x + 1] = (h_color >> 8) & 0xFF; //green
     line[4*x + 2] = (h_color >> 16) & 0xFF; //red
+    line[4*x + 3] = 255; // alpha
+}
+
+void Ekran::drawPixel(QImage& img, const QPoint& point, const PixelColor& color)
+{
+    int x = point.x();
+    int y = point.y();
+
+    int red = color.R;
+    int green = color.G;
+    int blue = color.B;
+
+    if (x < 0 || x >= img.width() || y < 0 || y >= img.height()) return;
+
+    uchar* line = img.scanLine(y);
+    line[4*x] = blue; //blue
+    line[4*x + 1] = green; //green
+    line[4*x + 2] = red; //red
     line[4*x + 3] = 255; // alpha
 }
 
@@ -228,7 +225,7 @@ void Ekran::drawLine(QImage& img, const QPoint& first, const QPoint& second)
 
         for (int x = x1; x <= x2; x++)
         {
-            drawPixel(img, x, y, 0x0000FF);
+            drawPixel(img, x, y, 0xFF0000);
         }
     }
     else if (std::abs(y2 - y1) <= std::abs(x2 - x1)) // 0 < m <= 1
@@ -247,7 +244,7 @@ void Ekran::drawLine(QImage& img, const QPoint& first, const QPoint& second)
         for (int x = x1; x <= x2; x++)
         {
             //y = m * (x - x1) + y1;
-            drawPixel(img, x, std::round(y), 0x0000FF);
+            drawPixel(img, x, std::round(y), 0xFF0000);
             y += m;
         }
     }
@@ -270,7 +267,7 @@ void Ekran::drawLine(QImage& img, const QPoint& first, const QPoint& second)
             for (int y = y1; y <= y2; y++) // pionowa
             {
                 //x = m * (y - y1) + y1;
-                drawPixel(img, x, y, 0x0000FF);
+                drawPixel(img, x, y, 0xFF0000);
             }
         }
         else
@@ -278,7 +275,7 @@ void Ekran::drawLine(QImage& img, const QPoint& first, const QPoint& second)
             for (int y = y1; y <= y2; y++)
             {
                 //x = m * (y - y1) + x1;
-                drawPixel(img, std::round(x), y, 0x0000FF);
+                drawPixel(img, std::round(x), y, 0xFF0000);
                 x += m;
             }
         }
@@ -542,7 +539,7 @@ void Ekran::drawBezierCurve(QImage &img, const std::vector<BezierPoint> &control
 // -------------------------------------------------------------------------------------------------------------------------------------------------
 
 
-void Ekran::flood_fill(QImage &img, const QPoint &point, const QColor &currentColor, const QColor &newColor)
+void Ekran::flood_fill(QImage& img, const QPoint& point, const PixelColor& currentColor, const PixelColor& newColor)
 {
     std::stack<QPoint> st;
     st.push(point);
@@ -551,17 +548,17 @@ void Ekran::flood_fill(QImage &img, const QPoint &point, const QColor &currentCo
 
     while(!st.empty())
     {
-        if (point.x() < 0 || point.y() < 0 || point.x() >= img.width() || point.y() >= img.height()) {
-            continue;
-        }
-
 
         QPoint p = st.top();
         st.pop();
 
-        if (img.pixelColor(p) == currentColor)
+
+        if (p.x() < 0 || p.x() >= img.width() || p.y() < 0 || p.y() >= img.height()) continue;
+
+
+        if (getPixelColor(img, p) == currentColor)
         {
-            img.setPixelColor(p, newColor);
+            drawPixel(img, p, newColor);
             st.emplace(p.x() - 1, p.y());
             st.emplace(p.x() + 1, p.y());
             st.emplace(p.x(), p.y() - 1);
@@ -569,6 +566,23 @@ void Ekran::flood_fill(QImage &img, const QPoint &point, const QColor &currentCo
 
         }
     }
+}
+
+PixelColor Ekran::getPixelColor(QImage& img, const QPoint& point) const
+{
+    int x = point.x();
+    int y = point.y();
+
+    if (x < 0 || x >= img.width() || y < 0 || y >= img.height()) return {0, 0, 0, 0};
+
+    uchar* line = img.scanLine(y);
+    int blue = line[4*x]; //blue
+    int green = line[4*x + 1]; //green
+    int red = line[4*x + 2]; //red
+    int alpha = line[4*x + 3]; // alpha
+
+
+    return PixelColor{red, green, blue, alpha};
 }
 
 
