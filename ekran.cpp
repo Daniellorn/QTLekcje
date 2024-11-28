@@ -568,18 +568,18 @@ void Ekran::flood_fill(QImage& img, const QPoint& point, const PixelColor& curre
     }
 }
 
-PixelColor Ekran::getPixelColor(QImage& img, const QPoint& point) const
+PixelColor Ekran::getPixelColor(const QImage& img, const QPoint& point) const
 {
     int x = point.x();
     int y = point.y();
 
     if (x < 0 || x >= img.width() || y < 0 || y >= img.height()) return {0, 0, 0, 0};
 
-    uchar* line = img.scanLine(y);
-    int blue = line[4*x]; //blue
-    int green = line[4*x + 1]; //green
-    int red = line[4*x + 2]; //red
-    int alpha = line[4*x + 3]; // alpha
+    const uchar* line = img.scanLine(y);
+    uint8_t blue = line[4*x]; //blue
+    uint8_t green = line[4*x + 1]; //green
+    uint8_t red = line[4*x + 2]; //red
+    uint8_t alpha = line[4*x + 3]; // alpha
 
 
     return PixelColor{red, green, blue, alpha};

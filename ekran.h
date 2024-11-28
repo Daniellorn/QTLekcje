@@ -26,10 +26,10 @@ struct BezierPoint
 
 struct PixelColor
 {
-    int R;
-    int G;
-    int B;
-    int alpha;
+    uint8_t R;
+    uint8_t G;
+    uint8_t B;
+    uint8_t alpha;
 
     auto operator<=>(const PixelColor& other) const = default;
 };
@@ -61,7 +61,7 @@ private:
     void flood_fill(QImage& img, const QPoint& point, const PixelColor& currentColor, const PixelColor& newColor);
 
 
-    PixelColor getPixelColor(QImage& img, const QPoint& point) const;
+    PixelColor getPixelColor(const QImage& img, const QPoint& point) const;
 
 
     void clear();
