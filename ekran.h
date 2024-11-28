@@ -43,9 +43,12 @@ private:
     void drawEllipse(QImage& img, const QPoint& first, const QPoint& second, int N);
     void drawBezierCurve(QImage& img, const std::vector<BezierPoint>& controlPoints, int N);
 
+
+    void flood_fill(QImage& img, const QPoint& point, const QColor& currentColor, const QColor& newColor);
+
     enum class drawingMode
     {
-        Line, Circle, Ellipse, BezierCurve
+        Line, Circle, Ellipse, BezierCurve, FillWithColor
     };
 
 
@@ -67,7 +70,8 @@ private:
     QPushButton* m_CircleButton;
     QPushButton* m_EllipseButton;
     QPushButton* m_ClearButton;
-    QPushButton* m_BezierCurve;
+    QPushButton* m_BezierCurveButton;
+    QPushButton* m_FillColorButton;
 
     EllipseWindow* m_ellipseWindow;
 
@@ -76,6 +80,7 @@ private slots:
     void setCircleMode();
     void setEllipseMode();
     void setBezierCurveMode();
+    void setFillWithColorMode();
     void clearAll();
     void updateEllipseN(int value);
 

@@ -2,13 +2,15 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QDebug>
+#include <QImage>
 
 #include <cmath>
 #include <vector>
 #include <algorithm>
+#include <stack>
 
 Ekran::Ekran(QWidget *parent)
-    : QWidget{parent}, m_isDrawing(false), m_ellipseN(1000)
+    : QWidget{parent}, m_isDrawing(false), m_ellipseN(500)
 {
     m_canvas = QImage(500, 500, QImage::Format_RGB32);
     m_canvas.fill(0);
@@ -19,20 +21,23 @@ Ekran::Ekran(QWidget *parent)
     m_CircleButton = new QPushButton("Circle", this);
     m_EllipseButton = new QPushButton("Ellipse", this);
     m_ClearButton = new QPushButton("Clear", this);
-    m_BezierCurve = new QPushButton("Bezier curve", this);
+    m_BezierCurveButton = new QPushButton("Bezier curve", this);
+    m_FillColorButton = new QPushButton("Fill with color", this);
 
     m_lineButton->setGeometry(550,10,100,30);
     m_CircleButton->setGeometry(550,50,100,30);
     m_EllipseButton->setGeometry(550,90,100,30);
     m_ClearButton->setGeometry(550, 450, 100, 30);
-    m_BezierCurve->setGeometry(550, 130, 100,30);
+    m_BezierCurveButton->setGeometry(550, 130, 100,30);
+    m_FillColorButton->setGeometry(550, 170, 100, 30);
 
 
     connect(m_lineButton, &QPushButton::clicked, this, &Ekran::setLineMode);
     connect(m_CircleButton, &QPushButton::clicked, this, &Ekran::setCircleMode);
     connect(m_EllipseButton, &QPushButton::clicked, this, &Ekran::setEllipseMode);
     connect(m_ClearButton, &QPushButton::clicked, this, &Ekran::clearAll);
-    connect(m_BezierCurve, &QPushButton::clicked, this, &Ekran::setBezierCurveMode);
+    connect(m_BezierCurveButton, &QPushButton::clicked, this, &Ekran::setBezierCurveMode);
+    connect(m_FillColorButton, &QPushButton::clicked, this, &Ekran::setFillWithColorMode);
 
     //Spytaj sie co z destruktorem okok
     m_ellipseWindow = new EllipseWindow(nullptr);
@@ -73,8 +78,10 @@ void Ekran::paintEvent(QPaintEvent *event)
                     drawEllipse(tempCanvas, m_startPoint, m_endPoint, m_ellipseN);
                     break;
             case drawingMode::BezierCurve:
-                //drawCircle(tempCanvas, m_startPoint, 3);
-                break;
+                    //drawCircle(tempCanvas, m_startPoint, 3);
+                    break;
+            case drawingMode::FillWithColor:
+                    break;
         }
 
         //drawLine(tempCanvas, m_startPoint, m_endPoint);
@@ -109,6 +116,7 @@ void Ekran::mousePressEvent(QMouseEvent *event)
         m_startPoint = event->pos();
         m_endPoint = event->pos();
         m_isDrawing = true;
+
     }
 
 
@@ -172,6 +180,12 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
                     drawBezierCurve(m_canvas, segmentPoints, 1000);
                 }
 
+                break;
+            case drawingMode::FillWithColor:
+
+                QColor color = m_canvas.pixelColor(m_endPoint);
+
+                flood_fill(m_canvas, m_endPoint, color, QColor(255, 0, 0, 255));
                 break;
         }
 
@@ -524,6 +538,40 @@ void Ekran::drawBezierCurve(QImage &img, const std::vector<BezierPoint> &control
 }
 
 
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+void Ekran::flood_fill(QImage &img, const QPoint &point, const QColor &currentColor, const QColor &newColor)
+{
+    std::stack<QPoint> st;
+    st.push(point);
+
+    if (currentColor == newColor) return;
+
+    while(!st.empty())
+    {
+        if (point.x() < 0 || point.y() < 0 || point.x() >= img.width() || point.y() >= img.height()) {
+            continue;
+        }
+
+
+        QPoint p = st.top();
+        st.pop();
+
+        if (img.pixelColor(p) == currentColor)
+        {
+            img.setPixelColor(p, newColor);
+            st.emplace(p.x() - 1, p.y());
+            st.emplace(p.x() + 1, p.y());
+            st.emplace(p.x(), p.y() - 1);
+            st.emplace(p.x(), p.y() + 1);
+
+        }
+    }
+}
+
+
 
 void Ekran::clear()
 {
@@ -576,6 +624,12 @@ void Ekran::setEllipseMode()
 void Ekran::setBezierCurveMode()
 {
     m_mode = drawingMode::BezierCurve;
+    m_ellipseWindow->hide();
+}
+
+void Ekran::setFillWithColorMode()
+{
+    m_mode = drawingMode::FillWithColor;
     m_ellipseWindow->hide();
 }
 

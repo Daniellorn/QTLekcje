@@ -7,7 +7,7 @@ EllipseWindow::EllipseWindow(QWidget *parent)
 
     setFixedSize(250,50);
 
-    m_label = new QLabel("N: 1000", this);
+    m_label = new QLabel("N: 500", this);
     m_slider = new QSlider(Qt::Horizontal, this);
     m_slider->setRange(0, 1000);
     m_slider->setValue(500);
