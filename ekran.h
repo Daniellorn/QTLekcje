@@ -42,6 +42,8 @@ class Ekran : public QWidget
 public:
     explicit Ekran(QWidget *parent = nullptr);
 
+    ~Ekran();
+
 protected:
     void paintEvent(QPaintEvent *event) override;
     void mouseMoveEvent(QMouseEvent *event) override;
@@ -59,30 +61,32 @@ private:
     void drawBezierCurve(QImage& img, const std::vector<BezierPoint>& controlPoints, int N);
 
     void flood_fill(QImage& img, const QPoint& point, const PixelColor& currentColor, const PixelColor& newColor);
-
+    void scanLineFill(QImage& img, const std::vector<QPoint>& points);
 
     PixelColor getPixelColor(const QImage& img, const QPoint& point) const;
 
 
     void clear();
     void removePoints(std::vector<BezierPoint>& bezierPoints, const QPoint& position);
-
+    void Copy(QImage& image, QImage& image2);
 
 
     enum class drawingMode
     {
-        Line, Circle, Ellipse, BezierCurve, FillWithColor
+        Line, Circle, Ellipse, BezierCurve, FillWithColor, ScanLineFillMode
     };
 
 
 private:
     QImage m_canvas;
+    QImage m_tempImage;
     QPoint m_startPoint;
     QPoint m_endPoint;
     bool m_isDrawing;
     int m_ellipseN;
 
     std::vector<BezierPoint> m_BezierCurvePoints;
+    std::vector<QPoint> m_points;
 
     drawingMode m_mode;
     QPushButton* m_lineButton;
@@ -91,6 +95,7 @@ private:
     QPushButton* m_ClearButton;
     QPushButton* m_BezierCurveButton;
     QPushButton* m_FillColorButton;
+    QPushButton* m_ScanLineFillButton;
 
     EllipseWindow* m_ellipseWindow;
 
@@ -100,6 +105,7 @@ private slots:
     void setEllipseMode();
     void setBezierCurveMode();
     void setFillWithColorMode();
+    void setScanLineFillMode();
     void clearAll();
     void updateEllipseN(int value);
 

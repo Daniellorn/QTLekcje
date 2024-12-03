@@ -14,6 +14,7 @@ Ekran::Ekran(QWidget *parent)
     : QWidget{parent}, m_isDrawing(false), m_ellipseN(500)
 {
     m_canvas = QImage(500, 500, QImage::Format_RGB32);
+    m_tempImage = QImage(500,500, QImage::Format_RGB32);
     m_canvas.fill(0);
 
     setFixedSize(700,500);
@@ -24,6 +25,8 @@ Ekran::Ekran(QWidget *parent)
     m_ClearButton = new QPushButton("Clear", this);
     m_BezierCurveButton = new QPushButton("Bezier curve", this);
     m_FillColorButton = new QPushButton("Fill with color", this);
+    m_ScanLineFillButton = new QPushButton("Filled polygon", this);
+
 
     m_lineButton->setGeometry(550,10,100,30);
     m_CircleButton->setGeometry(550,50,100,30);
@@ -31,6 +34,7 @@ Ekran::Ekran(QWidget *parent)
     m_ClearButton->setGeometry(550, 450, 100, 30);
     m_BezierCurveButton->setGeometry(550, 130, 100,30);
     m_FillColorButton->setGeometry(550, 170, 100, 30);
+    m_ScanLineFillButton->setGeometry(550, 210, 100, 30);
 
     connect(m_lineButton, &QPushButton::clicked, this, &Ekran::setLineMode);
     connect(m_CircleButton, &QPushButton::clicked, this, &Ekran::setCircleMode);
@@ -38,10 +42,35 @@ Ekran::Ekran(QWidget *parent)
     connect(m_ClearButton, &QPushButton::clicked, this, &Ekran::clearAll);
     connect(m_BezierCurveButton, &QPushButton::clicked, this, &Ekran::setBezierCurveMode);
     connect(m_FillColorButton, &QPushButton::clicked, this, &Ekran::setFillWithColorMode);
+    connect(m_ScanLineFillButton, &QPushButton::clicked, this, &Ekran::setScanLineFillMode);
+
 
     //Spytaj sie co z destruktorem okok
     m_ellipseWindow = new EllipseWindow(nullptr);
     connect(m_ellipseWindow, &EllipseWindow::valueChanged, this, &Ekran::updateEllipseN);
+
+}
+
+Ekran::~Ekran()
+{
+    delete m_lineButton;
+    delete m_CircleButton;
+    delete m_EllipseButton;
+    delete m_BezierCurveButton;
+    delete m_FillColorButton;
+    delete m_ClearButton;
+    delete m_ellipseWindow;
+    delete m_ScanLineFillButton;
+
+    m_lineButton = nullptr;
+    m_CircleButton = nullptr;
+    m_EllipseButton = nullptr;
+    m_BezierCurveButton = nullptr;
+    m_FillColorButton = nullptr;
+    m_ClearButton = nullptr;
+    m_ellipseWindow = nullptr;
+    m_ScanLineFillButton = nullptr;
+
 
 }
 
@@ -64,27 +93,29 @@ void Ekran::paintEvent(QPaintEvent *event)
 
     if (m_isDrawing)
     {
-        QImage tempCanvas = m_canvas.copy();
+        Copy(m_canvas, m_tempImage);
 
         switch (m_mode)
         {
             case drawingMode::Line:
-                    drawLineBresenham(tempCanvas, m_startPoint, m_endPoint);
+                    drawLineBresenham(m_tempImage, m_startPoint, m_endPoint);
                     break;
             case drawingMode::Circle:
-                    drawCircle(tempCanvas, m_startPoint, m_endPoint);
+                    drawCircle(m_tempImage, m_startPoint, m_endPoint);
                     break;
             case drawingMode::Ellipse:
-                    drawEllipse(tempCanvas, m_startPoint, m_endPoint, m_ellipseN);
+                    drawEllipse(m_tempImage, m_startPoint, m_endPoint, m_ellipseN);
                     break;
             case drawingMode::BezierCurve:
                     //drawCircle(tempCanvas, m_startPoint, 3);
                     break;
             case drawingMode::FillWithColor:
                     break;
+            //case drawingMode::ScanLineFillMode:
+
         }
 
-        p.drawImage(0, 0, tempCanvas);
+        p.drawImage(0, 0, m_tempImage);
     }
 
 }
@@ -95,6 +126,7 @@ void Ekran::mouseMoveEvent(QMouseEvent *event)
     //int x = p.x();
     //int y = p.y();
     //drawPixel(canvas, x, y, 255, 255, 255);
+
 
     if (m_isDrawing)
     {
@@ -115,6 +147,29 @@ void Ekran::mousePressEvent(QMouseEvent *event)
 
     }
 
+
+    if ((event->button() == Qt::LeftButton) && (m_mode == drawingMode::ScanLineFillMode))
+    {
+        m_startPoint = event->pos();
+        m_endPoint = event->pos();
+        m_isDrawing = true;
+
+        m_points.push_back(m_startPoint);
+
+
+
+        if (m_points.size() > 1)
+        {
+            drawLineBresenham(m_canvas, m_points[m_points.size() - 2], m_points[m_points.size() - 1]);
+        }
+    }
+
+
+    if ((event->button() == Qt::RightButton) && (m_mode == drawingMode::ScanLineFillMode))
+    {
+        drawLineBresenham(m_canvas, m_points[0], m_points[m_points.size() - 1]);
+        scanLineFill(m_canvas, m_points);
+    }
 
     if (event->button() == Qt::RightButton)
     {
@@ -301,7 +356,7 @@ void Ekran::drawLineBresenham(QImage& img, const QPoint& first, const QPoint& se
 
         for (int x = x1; x <= x2; x++)
         {
-            drawPixel(img, x, y1, 0xFF0000);
+            drawPixel(img, x, y1, 0x00FF00);
         }
     }
     else if (std::abs(x2 - x1) == 0) //pionowa
@@ -314,7 +369,7 @@ void Ekran::drawLineBresenham(QImage& img, const QPoint& first, const QPoint& se
 
         for (int y = y1; y <= y2; y++)
         {
-            drawPixel(img, x1, y, 0xFF0000);
+            drawPixel(img, x1, y, 0x00FF00);
         }
     }
     else if (std::abs(y2 - y1) <= std::abs(x2 - x1))
@@ -335,7 +390,7 @@ void Ekran::drawLineBresenham(QImage& img, const QPoint& first, const QPoint& se
 
         for (int x = x1; x <= x2; x++)
         {
-            drawPixel(img, x, y, 0xFF0000);
+            drawPixel(img, x, y, 0x00FF00);
             if (D > 0)
             {
                 y += m;
@@ -363,7 +418,7 @@ void Ekran::drawLineBresenham(QImage& img, const QPoint& first, const QPoint& se
 
         for (int y = y1; y <= y2; y++)
         {
-            drawPixel(img, x, y, 0xFF0000);
+            drawPixel(img, x, y, 0x00FF00);
             if (D > 0)
             {
                 x += m;
@@ -568,6 +623,63 @@ void Ekran::flood_fill(QImage& img, const QPoint& point, const PixelColor& curre
     }
 }
 
+void Ekran::scanLineFill(QImage &img, const std::vector<QPoint> &points)
+{
+
+    int yMax = std::max_element(points.begin(), points.end(), [](const QPoint& a, const QPoint& b) {
+                                return  a.y() < b.y();
+               })->y();
+
+    int yMin = std::min_element(points.begin(), points.end(), [](const QPoint& a, const QPoint& b){
+                                return a.y() < b.y();
+               })->y();
+
+    std::vector<int> intersections;
+
+    for (int y = yMin; y <= yMax; y++)
+    {
+        intersections.clear();
+        for (int i = 0; i < m_points.size(); i++)
+        {
+            QPoint A = m_points[i];
+            QPoint B = m_points[(i + 1) % m_points.size()];
+
+            //qDebug() << A;
+            //qDebug() << B;
+
+
+            // Spytaj sie o ten waruenk biore zawsze gorny a co sie dzieje z w przypadku V
+
+            if ((A.y() <= y && B.y() > y ) || ((A.y() > y) && (B.y() <= y)))
+            {
+                int x = A.x() + (y - A.y()) * (B.x() - A.x()) / (B.y() - A.y());
+                intersections.push_back(x);
+            }
+
+
+        }
+
+
+        std::sort(intersections.begin(), intersections.end());
+
+        for (int k = 0; k < intersections.size(); k+= 2)
+        {
+
+            if (k + 1 < intersections.size())
+            {
+                int xStart = intersections[k];
+                int xEnd = intersections[k + 1];
+
+                for (int x = xStart; x <= xEnd; x++)
+                {
+                    drawPixel(img, x, y, 0x00FF00);
+                }
+            }
+        }
+    }
+
+}
+
 PixelColor Ekran::getPixelColor(const QImage& img, const QPoint& point) const
 {
     int x = point.x();
@@ -613,6 +725,24 @@ void Ekran::removePoints(std::vector<BezierPoint> &bezierPoints, const QPoint &p
     }
 }
 
+void Ekran::Copy(QImage &image, QImage &image2)
+{
+
+    if (image.size() != image2.size())
+    {
+        qWarning() << "Blad wymiarow";
+        return;
+    }
+
+    for (int y = 0; y < image.height(); y++)
+    {
+        const uchar* line = image.scanLine(y);
+        uchar* line2 = image2.scanLine(y);
+
+        std::memcpy(line2, line, image.bytesPerLine());
+    }
+}
+
 void Ekran::setLineMode()
 {
     m_mode = drawingMode::Line;
@@ -647,6 +777,12 @@ void Ekran::setFillWithColorMode()
     m_ellipseWindow->hide();
 }
 
+void Ekran::setScanLineFillMode()
+{
+    m_mode = drawingMode::ScanLineFillMode;
+    m_ellipseWindow->hide();
+}
+
 void Ekran::clearAll()
 {
     m_canvas.fill(0);
@@ -654,6 +790,7 @@ void Ekran::clearAll()
     m_isDrawing = false;
 
     m_BezierCurvePoints.clear();
+    m_points.clear();
 
     m_ellipseWindow->hide();
 }
