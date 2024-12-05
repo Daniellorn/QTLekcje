@@ -45,10 +45,8 @@ Ekran::Ekran(QWidget *parent)
     connect(m_ScanLineFillButton, &QPushButton::clicked, this, &Ekran::setScanLineFillMode);
 
 
-    //Spytaj sie co z destruktorem okok
     m_ellipseWindow = new EllipseWindow(nullptr);
     connect(m_ellipseWindow, &EllipseWindow::valueChanged, this, &Ekran::updateEllipseN);
-
 }
 
 Ekran::~Ekran()
@@ -70,8 +68,6 @@ Ekran::~Ekran()
     m_ClearButton = nullptr;
     m_ellipseWindow = nullptr;
     m_ScanLineFillButton = nullptr;
-
-
 }
 
 void Ekran::paintEvent(QPaintEvent *event)
@@ -623,6 +619,9 @@ void Ekran::flood_fill(QImage& img, const QPoint& point, const PixelColor& curre
     }
 }
 
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+
 void Ekran::scanLineFill(QImage &img, const std::vector<QPoint> &points)
 {
 
@@ -680,6 +679,9 @@ void Ekran::scanLineFill(QImage &img, const std::vector<QPoint> &points)
 
 }
 
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+
 PixelColor Ekran::getPixelColor(const QImage& img, const QPoint& point) const
 {
     int x = point.x();
@@ -697,7 +699,8 @@ PixelColor Ekran::getPixelColor(const QImage& img, const QPoint& point) const
     return PixelColor{red, green, blue, alpha};
 }
 
-
+// -------------------------------------------------------------------------------------------------------------------------------------------------
+// -------------------------------------------------------------------------------------------------------------------------------------------------
 
 void Ekran::clear()
 {
