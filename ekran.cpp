@@ -11,7 +11,7 @@
 #include <stack>
 
 Ekran::Ekran(QWidget *parent)
-    : QWidget{parent}, m_isDrawing(false), m_ellipseN(500)
+    : QWidget{parent}, m_isDrawing(false), m_ellipseN(500), m_draggedPoint(-1), m_isDraggedPoint(false)
 {
     m_canvas = QImage(500, 500, QImage::Format_RGB32);
     m_tempImage = QImage(500,500, QImage::Format_RGB32);
@@ -79,11 +79,29 @@ void Ekran::paintEvent(QPaintEvent *event)
     //drawCircle(m_canvas, {100,100}, 3);
     //drawEllipse(m_canvas, {50,50}, {350,560}, 100);
 
-    if (m_BezierCurvePoints.size() != 0)
+
+
     {
         for (const auto& circle: m_BezierCurvePoints)
+            if (m_BezierCurvePoints.size() != 0)
         {
             drawCircle(m_canvas, circle.point, circle.radius);
+        }
+
+        if (m_BezierCurvePoints.size() >= 4 && (m_BezierCurvePoints.size() - 1) % 3 == 0)
+        {
+            int startIndex = 0;
+
+            while (startIndex + 1 < m_BezierCurvePoints.size())
+            {
+                std::vector<BezierPoint> segmentPoints(
+                    m_BezierCurvePoints.begin() + startIndex,
+                    m_BezierCurvePoints.begin() + startIndex + 4
+                    );
+                drawBezierCurve(m_canvas, segmentPoints, 1000);
+
+                startIndex += 3;
+            }
         }
     }
 
@@ -107,7 +125,8 @@ void Ekran::paintEvent(QPaintEvent *event)
                     break;
             case drawingMode::FillWithColor:
                     break;
-            //case drawingMode::ScanLineFillMode:
+            case drawingMode::ScanLineFillMode:
+                break;
 
         }
 
@@ -129,6 +148,26 @@ void Ekran::mouseMoveEvent(QMouseEvent *event)
         m_endPoint = event->pos();
     }
 
+    if (m_isDrawing && m_mode == drawingMode::BezierCurve)
+    {
+        if (m_isDraggedPoint && m_draggedPoint != -1)
+        {
+            QPoint newPos = event->pos();
+
+            if (newPos.x() < 0) newPos.setX(0);
+            else if (newPos.x() > m_canvas.width()) newPos.setX(m_canvas.width() - 1); // Maksymalna szerokość: width() - 1
+
+            if (newPos.y() < 0) newPos.setY(0);
+            else if (newPos.y() > m_canvas.height()) newPos.setY(m_canvas.height() - 1);
+
+
+            m_BezierCurvePoints[m_draggedPoint].point = newPos;
+            clear();
+            //update();
+        }
+    }
+
+
     update();
 }
 
@@ -141,6 +180,57 @@ void Ekran::mousePressEvent(QMouseEvent *event)
         m_endPoint = event->pos();
         m_isDrawing = true;
 
+
+        if (m_mode == drawingMode::BezierCurve)
+        {
+
+            QPoint position = event->pos();
+
+            auto comparator = [&position](const BezierPoint& a, const BezierPoint& b) {
+                float distanceA = a.distanceSquared(position);
+                float distanceB = b.distanceSquared(position);
+                return distanceA < distanceB;
+            };
+
+            auto it = std::min_element(m_BezierCurvePoints.begin(), m_BezierCurvePoints.end(), comparator);
+
+            if (it != m_BezierCurvePoints.end())
+            {
+                if (it->distanceSquared(position) <= it->radius * it->radius + 10)
+                {
+                    m_isDraggedPoint = true;
+                    m_draggedPoint = std::distance(m_BezierCurvePoints.begin(), it);
+                }
+            }
+
+        }
+
+    }
+
+
+    if (event->button() == Qt::MiddleButton && m_mode == drawingMode::BezierCurve)
+    {
+
+        QPoint position = event->pos();
+        m_isDrawing = true;
+
+
+        auto comparator = [&position](const BezierPoint& a, const BezierPoint& b) {
+            float distanceA = a.distanceSquared(position);
+            float distanceB = b.distanceSquared(position);
+            return distanceA < distanceB;
+        };
+
+        auto it = std::min_element(m_BezierCurvePoints.begin(), m_BezierCurvePoints.end(), comparator);
+
+        if (it != m_BezierCurvePoints.end())
+        {
+            if (it->distanceSquared(position) <= it->radius * it->radius + 10)
+            {
+                m_isDraggedPoint = true;
+                m_draggedPoint = std::distance(m_BezierCurvePoints.begin(), it);
+            }
+        }
     }
 
 
@@ -180,6 +270,16 @@ void Ekran::mousePressEvent(QMouseEvent *event)
 void Ekran::mouseReleaseEvent(QMouseEvent *event)
 {
 
+    PixelColor color{0, 0, 0, 0};
+
+    if (m_isDraggedPoint)
+    {
+        m_isDraggedPoint = false;
+        m_draggedPoint = -1;
+        //clear();
+        update();
+    }
+
 
     if (event->button() == Qt::LeftButton && m_isDrawing)
     {
@@ -213,10 +313,14 @@ void Ekran::mouseReleaseEvent(QMouseEvent *event)
                 break;
             case drawingMode::FillWithColor:
 
-                PixelColor color = getPixelColor(m_canvas, m_endPoint);
+                color = getPixelColor(m_canvas, m_endPoint);
 
                 flood_fill(m_canvas, m_endPoint, color, PixelColor{255, 0, 0, 0});
                 break;
+
+            case drawingMode::ScanLineFillMode:
+                break;
+
         }
 
         m_isDrawing = false;

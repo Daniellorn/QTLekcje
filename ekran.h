@@ -5,8 +5,6 @@
 #include <QPushButton>
 #include <QColor>
 
-#include <tuple>
-
 #include "ellipsewindow.h"
 
 struct BezierPoint
@@ -84,6 +82,8 @@ private:
     QPoint m_endPoint;
     bool m_isDrawing;
     int m_ellipseN;
+    int m_draggedPoint;
+    bool m_isDraggedPoint;
 
     std::vector<BezierPoint> m_BezierCurvePoints;
     std::vector<QPoint> m_points;
