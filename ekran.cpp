@@ -76,34 +76,23 @@ void Ekran::paintEvent(QPaintEvent *event)
     p.fillRect(0, 0, width(), height(), Qt::yellow);
     p.drawImage(0, 0, m_canvas);
 
-    //drawCircle(m_canvas, {100,100}, 3);
-    //drawEllipse(m_canvas, {50,50}, {350,560}, 100);
 
-
-
+    for (const auto& circle: m_BezierCurvePoints)
+        if (m_BezierCurvePoints.size() != 0)
     {
-        for (const auto& circle: m_BezierCurvePoints)
-            if (m_BezierCurvePoints.size() != 0)
-        {
-            drawCircle(m_canvas, circle.point, circle.radius);
-        }
-
-        if (m_BezierCurvePoints.size() >= 4 && (m_BezierCurvePoints.size() - 1) % 3 == 0)
-        {
-            int startIndex = 0;
-
-            while (startIndex + 1 < m_BezierCurvePoints.size())
-            {
-                std::vector<BezierPoint> segmentPoints(
-                    m_BezierCurvePoints.begin() + startIndex,
-                    m_BezierCurvePoints.begin() + startIndex + 4
-                    );
-                drawBezierCurve(m_canvas, segmentPoints, 1000);
-
-                startIndex += 3;
-            }
-        }
+        drawCircle(m_canvas, circle.point, circle.radius);
     }
+
+
+    int n = m_BezierCurvePoints.size();
+    for (int i = 3; i < n; i+=3)
+    {
+
+        std::vector<BezierPoint> segment{m_BezierCurvePoints[i - 3], m_BezierCurvePoints[i -2], m_BezierCurvePoints[i - 1], m_BezierCurvePoints[i]};
+
+        drawBezierCurve(m_canvas, segment, 1000);
+    }
+
 
     if (m_isDrawing)
     {
@@ -121,7 +110,6 @@ void Ekran::paintEvent(QPaintEvent *event)
                     drawEllipse(m_tempImage, m_startPoint, m_endPoint, m_ellipseN);
                     break;
             case drawingMode::BezierCurve:
-                    //drawCircle(tempCanvas, m_startPoint, 3);
                     break;
             case drawingMode::FillWithColor:
                     break;
